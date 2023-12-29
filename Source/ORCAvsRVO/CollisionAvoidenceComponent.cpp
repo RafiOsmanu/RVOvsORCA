@@ -33,7 +33,7 @@ void UCollisionAvoidenceComponent::TickComponent(float DeltaTime, ELevelTick Tic
 	// ...
 }
 
-void UCollisionAvoidenceComponent::CalculateVelocityObject(const TArray<TScriptInterface<IAgentInterface>>& agents)
+void UCollisionAvoidenceComponent::CalculateVelocityObject(const IAgentInterface* agentToAvoid)
 {
 	// implement VO
 	//
@@ -44,28 +44,48 @@ void UCollisionAvoidenceComponent::CalculateVelocityObject(const TArray<TScriptI
 
 	//clear m_VelocityObstacle so that now a new vel obstacle is created
 	m_VelocityObject.Empty();
+
 	
-	//in for loop
-	//{
-	//calculate rel vel v1 - v2
-	for (auto& agentToAvoid : agents)
+
+	//calc time
+	//auto timeToCollision = FVector::Distance(avoidanceAgent->GetPosition(), agentToAvoid->GetPosition()) / (relVelocity).Length();
+
+	//if the time to have collision with the other agent based purley on distance and current speed is bigger than relevant time
+	//we shouldnt calculate velocity for that agent
+	//if (timeToCollision > m_MaxTimeRelavancy) return;
+
+	auto currentVelAngle = avoidanceAgent->GetVelocity().HeadingAngle();
+	float angleResolution = 5;
+	double CheckRange = FMath::DegreesToRadians(90);
+	for (double velAngle{ currentVelAngle - CheckRange }; velAngle < currentVelAngle + CheckRange; velAngle += angleResolution)
 	{
-		FVector relVelocity = avoidanceAgent->GetVelocity() - agentToAvoid->GetVelocity();
-		//calc time
+		//calculate velocity to check collision from angle and speed
+		auto velToCheck = CalcVelocityFromAngleAndSpeed(velAngle, avoidanceAgent->GetVelocity().Length());
+
+		//calculate the relative vel 
+		FVector relVelocity = velToCheck - agentToAvoid->GetVelocity();
+
 		auto timeToCollision = FVector::Distance(avoidanceAgent->GetPosition(), agentToAvoid->GetPosition()) / (relVelocity).Length();
 
-		//if the time to have collision with the other agent based purley on distance and current speed is bigger than relevant time
-		//we shouldnt calculate velocity for that agent
-		if (timeToCollision > m_MaxTimeRelavancy)
-		{
+		FVector futurePosAvoidenceAgent = avoidanceAgent->GetPosition() + relVelocity * timeToCollision;
+		FVector futurePosAgentToAvoid = agentToAvoid->GetPosition() + relVelocity * timeToCollision;
 
-		}
+		//check for intersection using velangle to create a velocity vector
+		// if intersection is there add to velocity object 
 
 	}
 
+}
 
-	//check if p1 + rel vel * timeToCollision intersects with minkowski sum of p1 and p2 centered at p2
-	// if intersection happend add to m_VelocityObstacle
-	//}
+FVector UCollisionAvoidenceComponent::CalcVelocityFromAngleAndSpeed(double angle, double speed)
+{
+
+	FVector returnVelocity;
+	returnVelocity.X = FMath::Cos(angle);
+	returnVelocity.Y = FMath::Sin(angle);
+	
+	returnVelocity *= speed;
+
+	return returnVelocity;
 }
 

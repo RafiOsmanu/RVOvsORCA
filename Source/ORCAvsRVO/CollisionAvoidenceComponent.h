@@ -27,10 +27,12 @@ public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	void CalculateVelocityObject(const TArray<TScriptInterface<IAgentInterface>>& agents);
+	void CalculateVelocityObject(const IAgentInterface* agentToAvoid);
 
 private:
 	TArray<FVector> m_VelocityObject;
+
+	FVector CalcVelocityFromAngleAndSpeed(double angle, double speed);
 
 	
 		
