@@ -9,6 +9,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Materials/Material.h"
+#include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 
 #include "AgentManager.h"
@@ -34,38 +35,99 @@ AORCAvsRVOCharacter::AORCAvsRVOCharacter()
 	// Activate ticking in order to update the cursor every frame.
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
+	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "Lets GOO");
 
-	//register self to the manager that keeps all agents
-	UAgentManager::GetInstance()->RegisterAgent(this);
+	m_AvoidanceComponent = CreateDefaultSubobject<UCollisionAvoidenceComponent>(TEXT("AvoidanceComponent"));
 }
 
 void AORCAvsRVOCharacter::BeginPlay()
 {
+	Super::BeginPlay();
 	InitializeNeighbours();
+
+	
+}
+
+void AORCAvsRVOCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	//UAgentManager::GetInstance()->ReleaseInstance();
 }
 
 void AORCAvsRVOCharacter::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+	//GEngine->AddOnScreenDebugMessage(-1, .5f, FColor::Blue, FString::FromInt(m_NeighbouringAgents.Num()));
+	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "Tick");
+
+	DrawDebugSphere(GetWorld(), GetPosition(), m_AgentRadius, 26, FColor::Magenta, false, -1, 0, 1.f);
+	
+	DrawDebugDirectionalArrow(GetWorld(),
+		FVector(GetPosition2D().X, GetPosition2D().Y, 0),
+		FVector(GetPosition2D().X, GetPosition2D().Y, 0) + FVector(GetVelocity2D().X, GetVelocity2D().Y, 0),
+		50.f, FColor::Blue, false, 0.05f, 0, 5.f);
+
+	//GEngine->AddOnScreenDebugMessage(-1, .5f, FColor::Blue, "X: " + FString::FromInt(GetVelocity2D().X) + ", Y: " + FString::FromInt(GetVelocity2D().Y));
+
 }
 
 FVector AORCAvsRVOCharacter::GetPosition() const
 {
 	//return current position
-	return this->GetPosition();
+	return GetActorLocation();
+}
+
+FVector2D AORCAvsRVOCharacter::GetPosition2D() const
+{
+	
+	//return current position
+	return FVector2D(GetActorLocation().X, GetActorLocation().Y);
 }
 
 FVector AORCAvsRVOCharacter::GetVelocity() const
 {
 	//return current velocity
-	return this->GetVelocity();
-	
-	
+	return GetCharacterMovement()->Velocity;
+}
+
+FVector2D AORCAvsRVOCharacter::GetVelocity2D() const
+{
+	//return current velocity
+	return FVector2D(GetCharacterMovement()->Velocity.X, GetCharacterMovement()->Velocity.Y);
+
+
+}
+
+float AORCAvsRVOCharacter::GetRadius() const
+{
+	return m_AgentRadius;
+}
+
+void AORCAvsRVOCharacter::CalculateVelocityObject()
+{
+	for (const auto& neighborAgent : m_NeighbouringAgents)
+	{
+		if(neighborAgent)
+		m_AvoidanceComponent->CalculateVelocityObject(neighborAgent);
+	}
 }
 
 void AORCAvsRVOCharacter::InitializeNeighbours()
 {
-	auto allAgents = UAgentManager::GetInstance()->GetAllAgents();
+	TArray<AActor*> allActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AORCAvsRVOCharacter::StaticClass(), allActors);
+
+
+	TArray<AORCAvsRVOCharacter*> allAgents;
+
+	allAgents.Reserve(allActors.Num()); // Optional: Reserve space for efficiency
+
+	for (AActor* actor : allActors) {
+		AORCAvsRVOCharacter* Character = Cast<AORCAvsRVOCharacter>(actor);
+		if (Character) {
+			allAgents.Add(Character);
+		}
+	}
 
 	for (const auto& agent : allAgents)
 	{

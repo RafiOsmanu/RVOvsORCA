@@ -25,4 +25,5 @@ public:
 
 	virtual FVector GetPosition() const = 0;
 	virtual FVector GetVelocity() const = 0;
+	virtual float GetRadius() const = 0;
 };

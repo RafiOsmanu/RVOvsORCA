@@ -5,30 +5,39 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "AgentInterface.h"
+#include "ORCAvsRVOCharacter.h"
+#include "Subsystems/GameInstanceSubsystem.h"
 #include "AgentManager.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class ORCAVSRVO_API UAgentManager : public UObject
+class ORCAVSRVO_API UAgentManager : public UGameInstance
 {
 	GENERATED_BODY()
 
 public:
-	// Function to get the singleton instance of the manager
-	static UAgentManager* GetInstance();
+
+	//constructor
+	UAgentManager();
 
 	// Function to register agents that implement IAgentInterface
-	void RegisterAgent(const TScriptInterface<IAgentInterface>& agent);
+	void RegisterAgent(const AORCAvsRVOCharacter* agent);
+	
 
-	TArray<TScriptInterface<IAgentInterface>>& GetAllAgents() { return m_Agents; }
+	TArray<AORCAvsRVOCharacter*> GetAllAgents() { return m_Agents; }
+
+	UFUNCTION(BlueprintCallable, Category = "Singleton")
+	static UAgentManager* GetInstance();
 
 
 
 private:
-	// Array to store references to agents
-	TArray<TScriptInterface<IAgentInterface>> m_Agents;
 
 	
+	//static UAgentManager* Instance;
+
+	// Array to store references to agents
+	TArray<AORCAvsRVOCharacter*> m_Agents;
 };

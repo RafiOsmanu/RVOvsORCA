@@ -3,20 +3,21 @@
 
 #include "AgentManager.h"
 
-UAgentManager* UAgentManager::GetInstance()
+//static variable set to nullptr
+//UAgentManager* UAgentManager::Instance = nullptr;
+
+UAgentManager::UAgentManager()
 {
-    static UAgentManager* Instance = nullptr;
-
-    if (!Instance)
-    {
-        Instance = NewObject<UAgentManager>(GetTransientPackage(), UAgentManager::StaticClass());
-        Instance->AddToRoot(); // Ensure the singleton is not garbage collected
-    }
-
-    return Instance;
+    //Instance = this;
 }
 
-void UAgentManager::RegisterAgent(const TScriptInterface<IAgentInterface>& agent)
+void UAgentManager::RegisterAgent(const AORCAvsRVOCharacter* agent)
+{/*
+    if (m_Agents.Contains(agent)) return;
+    m_Agents.Add(agent);*/
+}
+
+UAgentManager* UAgentManager::GetInstance()
 {
-    m_Agents.Add(agent);
+    return nullptr;
 }

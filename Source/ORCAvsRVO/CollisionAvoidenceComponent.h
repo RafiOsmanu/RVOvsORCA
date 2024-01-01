@@ -7,6 +7,8 @@
 #include "Components/ActorComponent.h"
 #include "CollisionAvoidenceComponent.generated.h"
 
+class AORCAvsRVOCharacter;
+
 
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -22,17 +24,28 @@ protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
-	float m_MaxTimeRelavancy = 3.f;
+	
 public:	
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	void CalculateVelocityObject(const IAgentInterface* agentToAvoid);
+	void CalculateVelocityObject(const AORCAvsRVOCharacter* agentToAvoid, const bool avoidCollision = true);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AvoidanceInfo")
+	float m_MaxTimeRelavancy = 3.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AvoidanceInfo")
+	bool m_DrawDebug = false;
 
 private:
-	TArray<FVector> m_VelocityObject;
+	TArray<FVector2D> m_VelocityObject;
 
-	FVector CalcVelocityFromAngleAndSpeed(double angle, double speed);
+	FVector2D CalcVelocityFromAngleAndSpeed(double angle, double speed);
+	bool IsIntersecting(FVector2D futurePos1, FVector2D futurePos2, float radius1, float radius2);
+
+	bool IsOnCollisionCourse(const AORCAvsRVOCharacter* agentToAvoid);
+
+	void AvoidCollision(const AORCAvsRVOCharacter* avoidanceAgent, FVector2D velRangeStart, FVector2D velRangeEnd);
 
 	
 		

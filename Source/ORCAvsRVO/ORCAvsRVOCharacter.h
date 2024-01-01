@@ -5,10 +5,11 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "AgentInterface.h"
+#include "CollisionAvoidenceComponent.h"
 #include "ORCAvsRVOCharacter.generated.h"
 
 UCLASS(Blueprintable)
-class AORCAvsRVOCharacter : public ACharacter, public IAgentInterface
+class AORCAvsRVOCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
@@ -16,16 +17,32 @@ public:
 	AORCAvsRVOCharacter();
 
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// Called every frame.
 	virtual void Tick(float DeltaSeconds) override;
 
-	virtual FVector GetPosition() const override;
-	virtual FVector GetVelocity() const override;
+	virtual FVector GetPosition() const;
+	virtual FVector GetVelocity() const ;
+	FVector2D GetPosition2D() const;
+	FVector2D GetVelocity2D() const;
+	virtual float GetRadius() const ;
+
+	//COMPONENT
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AvoidanceComponent")
+	UCollisionAvoidenceComponent* m_AvoidanceComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AgentInfo")
+	float m_AgentRadius;
+
+	UFUNCTION(BlueprintCallable, Category = "CollisionAvoidence")
+	void CalculateVelocityObject();
+
 
 private:
 	//members
-	TArray<TScriptInterface<IAgentInterface>> m_NeighbouringAgents;
+	TArray<AORCAvsRVOCharacter*> m_NeighbouringAgents;
+
 
 	//methods
 	void InitializeNeighbours();
