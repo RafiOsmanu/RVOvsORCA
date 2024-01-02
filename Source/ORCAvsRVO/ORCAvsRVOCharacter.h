@@ -23,7 +23,7 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 
 	virtual FVector GetPosition() const;
-	virtual FVector GetVelocity() const ;
+	virtual FVector GetVelocity() const;
 	FVector2D GetPosition2D() const;
 	FVector2D GetVelocity2D() const;
 	virtual float GetRadius() const ;
@@ -34,6 +34,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AgentInfo")
 	float m_AgentRadius;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AgentInfo")
+	AActor* m_DestinationActor;
 
 	UFUNCTION(BlueprintCallable, Category = "CollisionAvoidence")
 	void CalculateVelocityObject();

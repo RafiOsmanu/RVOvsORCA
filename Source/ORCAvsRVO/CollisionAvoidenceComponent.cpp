@@ -2,6 +2,8 @@
 
 
 #include "CollisionAvoidenceComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "ORCAvsRVOCharacter.h"
 
 
@@ -88,7 +90,7 @@ void UCollisionAvoidenceComponent::CalculateVelocityObject(const AORCAvsRVOChara
 			m_VelocityObject.Add(velToCheck);
 			if (m_DrawDebug)
 			{
-				GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Green, "Added Potential Hit Vel!");
+				//GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Green, "Added Potential Hit Vel!");
 			}
 		}
 	}
@@ -115,11 +117,6 @@ void UCollisionAvoidenceComponent::CalculateVelocityObject(const AORCAvsRVOChara
 			0.5f, 0, 3.f);
 
 	}
-
-	
-	
-	
-
 }
 
 FVector2D UCollisionAvoidenceComponent::CalcVelocityFromAngleAndSpeed(double angle, double speed)
@@ -149,6 +146,8 @@ bool UCollisionAvoidenceComponent::IsIntersecting(FVector2D futurePos1, FVector2
 
 bool UCollisionAvoidenceComponent::IsOnCollisionCourse(const AORCAvsRVOCharacter* agentToAvoid)
 {
+
+	if (!agentToAvoid) return false;
 	//check to see if we are on collision course in the first place
 
 	AORCAvsRVOCharacter* avoidanceAgent = Cast<AORCAvsRVOCharacter>(GetOwner());
@@ -170,25 +169,61 @@ bool UCollisionAvoidenceComponent::IsOnCollisionCourse(const AORCAvsRVOCharacter
 
 void UCollisionAvoidenceComponent::AvoidCollision(const AORCAvsRVOCharacter* avoidanceAgent, FVector2D velRangeStart, FVector2D velRangeEnd)
 {
+	//dont avoid collision if you are not moving
+	if (avoidanceAgent->GetVelocity().Size() <= 0) return;
+	if (!avoidanceAgent->m_DestinationActor) return;
+
+	//calculate desired velocity
+	auto destinationPos = avoidanceAgent->m_DestinationActor->GetActorLocation();
+	FVector2D destinationPos2D = FVector2D(destinationPos.X, destinationPos.Y);
+
+	auto desiredDirection = (destinationPos2D - avoidanceAgent->GetPosition2D()).GetSafeNormal();
+	auto desiredVelocity = desiredDirection * avoidanceAgent->GetPosition2D().Size();
+
 	//choose a vel outside of velocity object 
-	auto currentVelAngle = FMath::DegreesToRadians(FMath::Atan2(avoidanceAgent->GetVelocity2D().Y, avoidanceAgent->GetVelocity2D().X));
+	//auto currentVelAngle = FMath::DegreesToRadians(FMath::Atan2(avoidanceAgent->GetVelocity2D().Y, avoidanceAgent->GetVelocity2D().X));
+	auto desiredVelAngle = FMath::DegreesToRadians(FMath::Atan2(desiredVelocity.Y, desiredVelocity.X));
 	auto startAngle = FMath::DegreesToRadians(FMath::Atan2(velRangeStart.Y, velRangeStart.X));
 	auto endAngle = FMath::DegreesToRadians(FMath::Atan2(velRangeEnd.Y, velRangeEnd.X));
 
-	auto angleDiffToStart = FMath::Abs(currentVelAngle - startAngle);
-	auto angleDiffToEnd = FMath::Abs(currentVelAngle - endAngle);
+	auto angleDiffToStart = FMath::Abs(desiredVelAngle - startAngle);
+	auto angleDiffToEnd = FMath::Abs(desiredVelAngle - endAngle);
 
-	double avoidOffset = FMath::DegreesToRadians(10);
+	double avoidOffset = FMath::DegreesToRadians(30);
+	FVector2D avoidenceVelocity;
+	int randSide;
 
 	if (angleDiffToStart == angleDiffToEnd)
 	{
-
+		randSide = FMath::FRandRange(0, 1);
 	}
-	else
+
+	// Calculate the new angle with damping
+	double avoidanceAngle;
+	if (angleDiffToStart < angleDiffToEnd || randSide == 0)
 	{
-		auto closestRangeCap = FMath::Min(angleDiffToStart, angleDiffToEnd);
-
-
+		avoidanceAngle = startAngle - avoidOffset;
 	}
+	else if(angleDiffToEnd < angleDiffToStart || randSide == 1)
+	{
+		avoidanceAngle = endAngle + avoidOffset;
+	}
+
+	
+	// Calculate the avoidance velocity based on the damped angle
+	avoidenceVelocity = CalcVelocityFromAngleAndSpeed(avoidanceAngle, avoidanceAgent->GetVelocity().Size());
+
+	auto characterMovement = avoidanceAgent->GetCharacterMovement();
+	characterMovement->Velocity += (FVector(avoidenceVelocity.X, avoidenceVelocity.Y, 0));
+
+	float maxSpeed = characterMovement->MaxWalkSpeed;
+	float currentSpeed = characterMovement->Velocity.Size();
+	float clampedSpeed = FMath::Clamp(currentSpeed, 0.0f, maxSpeed * 1.5);
+
+	characterMovement->Velocity = characterMovement->Velocity.GetSafeNormal() * clampedSpeed;
+
+	
+	
+	//GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Orange, "AvoidingCollision");
 }
 

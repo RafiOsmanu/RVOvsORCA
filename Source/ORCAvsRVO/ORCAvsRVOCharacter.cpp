@@ -30,6 +30,8 @@ AORCAvsRVOCharacter::AORCAvsRVOCharacter()
 	GetCharacterMovement()->bConstrainToPlane = true;
 	GetCharacterMovement()->bSnapToPlaneAtStart = true;
 
+
+	
 	
 
 	// Activate ticking in order to update the cursor every frame.
@@ -61,6 +63,7 @@ void AORCAvsRVOCharacter::Tick(float DeltaSeconds)
 	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "Tick");
 
 	DrawDebugSphere(GetWorld(), GetPosition(), m_AgentRadius, 26, FColor::Magenta, false, -1, 0, 1.f);
+	DrawDebugBox(GetWorld(), GetPosition(), FVector(10, 10, 10), FColor::Orange, false, 10, 0, 2.f);
 	
 	DrawDebugDirectionalArrow(GetWorld(),
 		FVector(GetPosition2D().X, GetPosition2D().Y, 0),
