@@ -26,7 +26,8 @@ public:
 	virtual FVector GetVelocity() const;
 	FVector2D GetPosition2D() const;
 	FVector2D GetVelocity2D() const;
-	virtual float GetRadius() const ;
+	FVector2D GetDestinationPos2D() const;
+	virtual float GetRadius() const;
 
 	//COMPONENT
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AvoidanceComponent")

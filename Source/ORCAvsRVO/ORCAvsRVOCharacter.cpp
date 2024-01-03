@@ -62,13 +62,13 @@ void AORCAvsRVOCharacter::Tick(float DeltaSeconds)
 	//GEngine->AddOnScreenDebugMessage(-1, .5f, FColor::Blue, FString::FromInt(m_NeighbouringAgents.Num()));
 	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "Tick");
 
-	DrawDebugSphere(GetWorld(), GetPosition(), m_AgentRadius, 26, FColor::Magenta, false, -1, 0, 1.f);
 	DrawDebugBox(GetWorld(), GetPosition(), FVector(10, 10, 10), FColor::Orange, false, 10, 0, 2.f);
+	/*DrawDebugSphere(GetWorld(), GetPosition(), m_AgentRadius, 26, FColor::Magenta, false, -1, 0, 1.f);
 	
 	DrawDebugDirectionalArrow(GetWorld(),
 		FVector(GetPosition2D().X, GetPosition2D().Y, 0),
 		FVector(GetPosition2D().X, GetPosition2D().Y, 0) + FVector(GetVelocity2D().X, GetVelocity2D().Y, 0),
-		50.f, FColor::Blue, false, 0.05f, 0, 5.f);
+		50.f, FColor::Blue, false, 0.05f, 0, 5.f);*/
 
 	//GEngine->AddOnScreenDebugMessage(-1, .5f, FColor::Blue, "X: " + FString::FromInt(GetVelocity2D().X) + ", Y: " + FString::FromInt(GetVelocity2D().Y));
 
@@ -99,6 +99,11 @@ FVector2D AORCAvsRVOCharacter::GetVelocity2D() const
 	return FVector2D(GetCharacterMovement()->Velocity.X, GetCharacterMovement()->Velocity.Y);
 
 
+}
+
+FVector2D AORCAvsRVOCharacter::GetDestinationPos2D() const
+{
+	return FVector2D(m_DestinationActor->GetActorLocation().X, m_DestinationActor->GetActorLocation().Y);
 }
 
 float AORCAvsRVOCharacter::GetRadius() const

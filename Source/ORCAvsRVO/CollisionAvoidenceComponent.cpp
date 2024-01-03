@@ -50,16 +50,9 @@ void UCollisionAvoidenceComponent::CalculateVelocityObject(const AORCAvsRVOChara
 
 
 	auto currentVelAngle = FMath::DegreesToRadians(FMath::Atan2(avoidanceAgent->GetVelocity2D().Y, avoidanceAgent->GetVelocity2D().X));
-	float angleResolution = FMath::DegreesToRadians(10.f);
+	float angleResolution = FMath::DegreesToRadians(5.f);
 	double CheckRange = FMath::DegreesToRadians(180);
 
-	//first vel that starts the range
-	bool startVelFound = false;
-	FVector2D velRangeStart;
-
-	//last vel that ends the range
-	bool endVelFound = false;
-	FVector2D velRangeEnd;
 
 	//velocity obstacle calculation
 	for (double velAngle{ currentVelAngle - CheckRange }; velAngle <= currentVelAngle + CheckRange; velAngle += angleResolution)
@@ -83,10 +76,6 @@ void UCollisionAvoidenceComponent::CalculateVelocityObject(const AORCAvsRVOChara
 	
 		if (IsIntersecting(futurePosAvoidenceAgent, futurePosAgentToAvoid, avoidanceAgent->GetRadius(), agentToAvoid->GetRadius()))
 		{
-			//cache the "start and end vel" of VO
-			if (!startVelFound) velRangeStart = velToCheck;
-			if (velAngle + angleResolution <= currentVelAngle + CheckRange && !endVelFound) velRangeEnd = velToCheck;
-
 			m_VelocityObject.Add(velToCheck);
 			if (m_DrawDebug)
 			{
@@ -96,7 +85,7 @@ void UCollisionAvoidenceComponent::CalculateVelocityObject(const AORCAvsRVOChara
 	}
 
 	//choosing a vel outside of the velocity object andding it to the velcity of agent
-	if (avoidCollision) AvoidCollision(avoidanceAgent, velRangeStart, velRangeEnd);
+	if (avoidCollision) AvoidCollision(avoidanceAgent);
 	
 
 	if (!m_DrawDebug) return;
@@ -152,6 +141,11 @@ bool UCollisionAvoidenceComponent::IsOnCollisionCourse(const AORCAvsRVOCharacter
 
 	AORCAvsRVOCharacter* avoidanceAgent = Cast<AORCAvsRVOCharacter>(GetOwner());
 
+	
+
+	if (FVector2D::Distance(avoidanceAgent->GetPosition2D(), agentToAvoid->GetPosition2D()) >
+		FVector2D::Distance(avoidanceAgent->GetPosition2D(), avoidanceAgent->GetDestinationPos2D())) return false;
+
 	FVector2D relVelocity = avoidanceAgent->GetVelocity2D() - agentToAvoid->GetVelocity2D();
 
 
@@ -167,11 +161,15 @@ bool UCollisionAvoidenceComponent::IsOnCollisionCourse(const AORCAvsRVOCharacter
 }
 
 
-void UCollisionAvoidenceComponent::AvoidCollision(const AORCAvsRVOCharacter* avoidanceAgent, FVector2D velRangeStart, FVector2D velRangeEnd)
+void UCollisionAvoidenceComponent::AvoidCollision(const AORCAvsRVOCharacter* avoidanceAgent)
 {
 	//dont avoid collision if you are not moving
 	if (avoidanceAgent->GetVelocity().Size() <= 0) return;
 	if (!avoidanceAgent->m_DestinationActor) return;
+	if (m_VelocityObject.Num() <= 0) return;
+
+	auto velRangeStart = m_VelocityObject.Top();
+	auto velRangeEnd = m_VelocityObject.Last();
 
 	//calculate desired velocity
 	auto destinationPos = avoidanceAgent->m_DestinationActor->GetActorLocation();
@@ -189,7 +187,7 @@ void UCollisionAvoidenceComponent::AvoidCollision(const AORCAvsRVOCharacter* avo
 	auto angleDiffToStart = FMath::Abs(desiredVelAngle - startAngle);
 	auto angleDiffToEnd = FMath::Abs(desiredVelAngle - endAngle);
 
-	double avoidOffset = FMath::DegreesToRadians(30);
+	double avoidOffset = FMath::DegreesToRadians(5);
 	FVector2D avoidenceVelocity;
 	int randSide;
 
@@ -214,7 +212,15 @@ void UCollisionAvoidenceComponent::AvoidCollision(const AORCAvsRVOCharacter* avo
 	avoidenceVelocity = CalcVelocityFromAngleAndSpeed(avoidanceAngle, avoidanceAgent->GetVelocity().Size());
 
 	auto characterMovement = avoidanceAgent->GetCharacterMovement();
-	characterMovement->Velocity += (FVector(avoidenceVelocity.X, avoidenceVelocity.Y, 0));
+
+	//RVO Averaging concept
+	auto reciprocalVelocityObstacleAvoidence = (avoidenceVelocity + avoidanceAgent->GetVelocity2D()) * 0.5;
+	
+	//RVO
+	characterMovement->Velocity += (FVector(reciprocalVelocityObstacleAvoidence.X, reciprocalVelocityObstacleAvoidence.Y, 0));
+
+	//Regular VO
+	//characterMovement->Velocity += (FVector(avoidenceVelocity.X, avoidenceVelocity.Y, 0));
 
 	float maxSpeed = characterMovement->MaxWalkSpeed;
 	float currentSpeed = characterMovement->Velocity.Size();
@@ -222,7 +228,6 @@ void UCollisionAvoidenceComponent::AvoidCollision(const AORCAvsRVOCharacter* avo
 
 	characterMovement->Velocity = characterMovement->Velocity.GetSafeNormal() * clampedSpeed;
 
-	
 	
 	//GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Orange, "AvoidingCollision");
 }

@@ -45,7 +45,7 @@ private:
 
 	bool IsOnCollisionCourse(const AORCAvsRVOCharacter* agentToAvoid);
 
-	void AvoidCollision(const AORCAvsRVOCharacter* avoidanceAgent, FVector2D velRangeStart, FVector2D velRangeEnd);
+	void AvoidCollision(const AORCAvsRVOCharacter* avoidanceAgent);
 
 	
 		
