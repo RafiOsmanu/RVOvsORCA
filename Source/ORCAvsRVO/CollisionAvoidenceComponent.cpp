@@ -5,6 +5,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "ORCAvsRVOCharacter.h"
+#include "ClpSimplex.hpp"
 
 
 // Sets default values for this component's properties
@@ -22,6 +23,7 @@ void UCollisionAvoidenceComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	ClpSimplex model;
 	// ...
 	
 }
