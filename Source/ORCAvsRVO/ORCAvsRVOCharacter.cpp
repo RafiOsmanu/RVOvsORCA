@@ -63,12 +63,12 @@ void AORCAvsRVOCharacter::Tick(float DeltaSeconds)
 	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "Tick");
 
 	DrawDebugBox(GetWorld(), GetPosition(), FVector(10, 10, 10), FColor::Orange, false, 10, 0, 2.f);
-	/*DrawDebugSphere(GetWorld(), GetPosition(), m_AgentRadius, 26, FColor::Magenta, false, -1, 0, 1.f);
-	
 	DrawDebugDirectionalArrow(GetWorld(),
 		FVector(GetPosition2D().X, GetPosition2D().Y, 0),
 		FVector(GetPosition2D().X, GetPosition2D().Y, 0) + FVector(GetVelocity2D().X, GetVelocity2D().Y, 0),
-		50.f, FColor::Blue, false, 0.05f, 0, 5.f);*/
+		50.f, FColor::Blue, false, 0.05f, 0, 5.f);
+	//DrawDebugSphere(GetWorld(), GetPosition(), m_AgentRadius, 26, FColor::Magenta, false, -1, 0, 1.f);
+	
 
 	//GEngine->AddOnScreenDebugMessage(-1, .5f, FColor::Blue, "X: " + FString::FromInt(GetVelocity2D().X) + ", Y: " + FString::FromInt(GetVelocity2D().Y));
 
@@ -115,9 +115,16 @@ void AORCAvsRVOCharacter::CalculateVelocityObject()
 {
 	for (const auto& neighborAgent : m_NeighbouringAgents)
 	{
-		if(neighborAgent)
-		m_AvoidanceComponent->CalculateVelocityObject(neighborAgent);
+		if (!neighborAgent) continue;
+		//VO / RVO
+		m_AvoidanceComponent->CalculateVelocityObject(neighborAgent, false);
+
+		//ORCA
+		m_AvoidanceComponent->CalculateOrcaLine(neighborAgent);
 	}
+
+	//ORCA
+	m_AvoidanceComponent->ChooseOptimalVelocity();
 }
 
 void AORCAvsRVOCharacter::InitializeNeighbours()

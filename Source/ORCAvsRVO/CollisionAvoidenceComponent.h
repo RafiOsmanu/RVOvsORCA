@@ -31,6 +31,11 @@ public:
 
 	void CalculateVelocityObject(const AORCAvsRVOCharacter* agentToAvoid, const bool avoidCollision = true);
 
+	//ORCA
+	void CalculateOrcaLine(const AORCAvsRVOCharacter* agentToAvoid);
+
+	void ChooseOptimalVelocity();
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AvoidanceInfo")
 	float m_MaxTimeRelavancy = 3.f;
 
@@ -38,7 +43,20 @@ public:
 	bool m_DrawDebug = false;
 
 private:
+
 	TArray<FVector2D> m_VelocityObject;
+
+	//ORCA
+	struct OrcaLine
+	{
+		FVector2D point, direction;
+	};
+
+	TArray<OrcaLine> m_OrcaLines;
+
+	
+	FVector2D FindVectorToClosestPointOnVOBound(FVector2D startPoint);
+
 
 	FVector2D CalcVelocityFromAngleAndSpeed(double angle, double speed);
 	bool IsIntersecting(FVector2D futurePos1, FVector2D futurePos2, float radius1, float radius2);
@@ -46,6 +64,8 @@ private:
 	bool IsOnCollisionCourse(const AORCAvsRVOCharacter* agentToAvoid);
 
 	void AvoidCollision(const AORCAvsRVOCharacter* avoidanceAgent);
+
+	
 
 	
 		

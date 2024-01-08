@@ -25,7 +25,6 @@ public class ORCAvsRVO : ModuleRules
         //Undefined MACROS
         PublicDefinitions.Add("PRICE_USE_OPENMP=1");
         PublicDefinitions.Add("ABOCA_LITE=1");
-        //PublicDefinitions.Add("PRICE_USE_CHUNKS=1");
         PublicDefinitions.Add("CLP_HAS_ABC=1");
         PublicDefinitions.Add("__BYTE_ORDER=1");
         PublicDefinitions.Add("__LITTLE_ENDIAN=1");
