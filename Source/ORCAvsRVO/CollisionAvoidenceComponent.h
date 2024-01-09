@@ -42,6 +42,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AvoidanceInfo")
 	bool m_DrawDebug = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AvoidanceInfo")
+	double m_OrcaPathFollowingWeight = 0;
+
 private:
 
 	TArray<FVector2D> m_VelocityObject;
