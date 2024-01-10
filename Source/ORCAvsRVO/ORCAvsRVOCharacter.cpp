@@ -63,10 +63,10 @@ void AORCAvsRVOCharacter::Tick(float DeltaSeconds)
 	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "Tick");
 
 	DrawDebugBox(GetWorld(), GetPosition(), FVector(10, 10, 10), FColor::Orange, false, 10, 0, 2.f);
-	DrawDebugDirectionalArrow(GetWorld(),
+	/*DrawDebugDirectionalArrow(GetWorld(),
 		FVector(GetPosition2D().X, GetPosition2D().Y, 0),
 		FVector(GetPosition2D().X, GetPosition2D().Y, 0) + FVector(GetVelocity2D().X, GetVelocity2D().Y, 0),
-		50.f, FColor::Blue, false, 0.05f, 0, 5.f);
+		50.f, FColor::Blue, false, 0.05f, 0, 5.f);*/
 	//DrawDebugSphere(GetWorld(), GetPosition(), m_AgentRadius, 26, FColor::Magenta, false, -1, 0, 1.f);
 	
 

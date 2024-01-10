@@ -56,6 +56,9 @@ private:
 	};
 
 	TArray<OrcaLine> m_OrcaLines;
+	bool m_IsDrawnOnce = false;
+
+	double NormalizeAngle(double angle);
 
 	
 	FVector2D FindVectorToClosestPointOnVOBound(FVector2D startPoint);
