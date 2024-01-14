@@ -4,7 +4,9 @@
 #include "CollisionAvoidenceComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
+#include <chrono>
 #include "ORCAvsRVOCharacter.h"
+
 
 THIRD_PARTY_INCLUDES_START
 #include "ClpSimplex.hpp"
@@ -14,32 +16,22 @@ THIRD_PARTY_INCLUDES_END
 // Sets default values for this component's properties
 UCollisionAvoidenceComponent::UCollisionAvoidenceComponent()
 {
+	
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
-
-	// ...
 }
 
 // Called when the game starts
 void UCollisionAvoidenceComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
-	
-	// ...
-	
 }
 
 // Called every frame
 void UCollisionAvoidenceComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-	//AORCAvsRVOCharacter* avoidanceAgent = Cast<AORCAvsRVOCharacter>(GetOwner());
-	//auto currVelAngle = avoidanceAgent->GetActorRotation();
-	//GEngine->AddOnScreenDebugMessage(-1, 0.02, FColor::Green, FString::Printf(TEXT("Current Vel Angle: %f"), (currVelAngle.Yaw)));
-
-	// ...
 }
 
 
@@ -89,7 +81,10 @@ void UCollisionAvoidenceComponent::CalculateVelocityObject(const AORCAvsRVOChara
 	if (avoidCollision) AvoidCollision(avoidanceAgent);
 	
 
+	
+
 	if (!m_DrawDebug) return;
+	
 
 	//GEngine->AddOnScreenDebugMessage(-1, 100, FColor::Blue, FString::FromInt(m_VelocityObject.Num()));
 
@@ -160,11 +155,6 @@ void UCollisionAvoidenceComponent::CalculateOrcaLine(const AORCAvsRVOCharacter* 
 	{
 		FVector2D minimalAvoidVel = FindVectorToClosestPointOnVOBound(relVelocity);
 		
-		//GEngine->AddOnScreenDebugMessage(-1, 100, FColor::Green, "Relative Velocity: " + FString::FromInt(relVelocity.X) + " , " + FString::FromInt(relVelocity.Y));
-		//GEngine->AddOnScreenDebugMessage(-1, 100, FColor::Blue, "Current Velocity: " + FString::FromInt(avoidanceAgent->GetVelocity2D().X) + " , " + FString::FromInt(avoidanceAgent->GetVelocity2D().Y));
-		//GEngine->AddOnScreenDebugMessage(-1, 100, FColor::Red, "MidPoint: " + FString::FromInt(midPoint.X) + " , " + FString::FromInt(midPoint.Y));
-		//GEngine->AddOnScreenDebugMessage(-1, 100, FColor::Orange, "Direction: " + FString::FromInt(direction.X) + " , " + FString::FromInt(direction.Y));
-
 		if (minimalAvoidVel == FVector2D()) return;
 
 		//point in which the orca line should pass through
@@ -214,9 +204,12 @@ void UCollisionAvoidenceComponent::ChooseOptimalVelocity()
 	
 	// Define variables for vx and vy
 	int numCols = 2;
-	double colLowerBound[2] = { -maxSpeed, -maxSpeed }; // Lower bounds 
-	double colUpperBound[2] = { maxSpeed, maxSpeed };   // Upper bounds 
-	double objective[2];                        // Objective function coefficients
+	// Lower bounds 
+	double colLowerBound[2] = { -maxSpeed, -maxSpeed }; 
+	// Upper bounds 
+	double colUpperBound[2] = { maxSpeed, maxSpeed }; 
+	// Objective function coefficients
+	double objective[2];                       
 
 	// Set preferred velocities as the objective
 	auto currentDirection = avoidanceAgent->GetVelocity2D().GetSafeNormal();
@@ -228,18 +221,11 @@ void UCollisionAvoidenceComponent::ChooseOptimalVelocity()
 
 
 	// Add constraints for each ORCA line
-	for (const OrcaLine& line : m_OrcaLines) {
-		//A* vx + B * vy ≤ C
+	for (const OrcaLine& line : m_OrcaLines) 
+	{
 		//line.point is a point on the ORCA line and line.direction is the normal vector of the ORCA line
 		FVector2D normal = line.direction;
-		double C = FVector2D::DotProduct(normal, line.point); // Calculate C based on the ORCA line equation
-
-		if (m_DrawDebug)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 100, FColor::Orange,
-				"Preferred Velocity Direction: "
-				+ FString::SanitizeFloat(C));
-		}
+		double C = FVector2D::DotProduct(normal, line.point); 
 
 		// Coefficients for the inequality A*vx + B*vy ≤ C
 		double elements[2] = { normal.X, normal.Y };
@@ -277,7 +263,15 @@ void UCollisionAvoidenceComponent::ChooseOptimalVelocity()
 			+ FString::SanitizeFloat(currentDirection.Y));
 	}
 
-	characterMovement->Velocity = optimalVelocity;
+	//we += optimal velocity to get less abrupt changes since we clamp this works 
+	characterMovement->Velocity += optimalVelocity;
+
+	
+	float currentSpeed = characterMovement->Velocity.Size();
+	float clampedSpeed = FMath::Clamp(currentSpeed, 0.0f, maxSpeed);
+
+	characterMovement->Velocity = characterMovement->Velocity.GetSafeNormal() * clampedSpeed;
+	
 
 	//empty out array after getting the right velocity
 	m_OrcaLines.Empty();
@@ -313,6 +307,39 @@ FVector2D UCollisionAvoidenceComponent::FindVectorToClosestPointOnVOBound(FVecto
 		return FVector2D(smallestVecToEndRange.X, smallestVecToEndRange.Y);
 	}
 	
+	return FVector2D();
+}
+
+FVector2D UCollisionAvoidenceComponent::FindClosestVOBoundFromPoint(FVector2D startPoint)
+{
+	auto velRangeStart = m_VelocityObject[0];
+	auto velRangeEnd = m_VelocityObject[m_VelocityObject.Num() - 1];
+
+	if (velRangeStart.Size() == 0 || velRangeEnd.Size() == 0) return FVector2D();
+
+	//calculates vec to closest point on the start range vec
+	auto smallestVecToStartRange = FMath::ClosestPointOnInfiniteLine(FVector(), FVector(velRangeStart.X, velRangeStart.Y, 0), FVector(startPoint.X, startPoint.Y, 0));
+	smallestVecToStartRange -= FVector(startPoint.X, startPoint.Y, 0);
+	//calculates vec to closest point on the end range vec
+	auto smallestVecToEndRange = FMath::ClosestPointOnInfiniteLine(FVector(), FVector(velRangeEnd.X, velRangeEnd.Y, 0), FVector(startPoint.X, startPoint.Y, 0));
+	smallestVecToEndRange -= FVector(startPoint.X, startPoint.Y, 0);
+
+	int randNumb;
+	if (smallestVecToStartRange.Size() == smallestVecToEndRange.Size())
+	{
+		randNumb = FMath::FRandRange(0, 1);
+	}
+
+	// Calculate the new angle with damping
+	if (smallestVecToStartRange.Size() < smallestVecToEndRange.Size() || randNumb == 0)
+	{
+		return velRangeStart;
+	}
+	else if (smallestVecToEndRange.Size() < smallestVecToStartRange.Size() || randNumb == 1)
+	{
+		return velRangeEnd;
+	}
+
 	return FVector2D();
 }
 
@@ -376,43 +403,36 @@ void UCollisionAvoidenceComponent::AvoidCollision(const AORCAvsRVOCharacter* avo
 	if (!avoidanceAgent->m_DestinationActor) return;
 	if (m_VelocityObject.Num() <= 0) return;
 
-	auto velRangeStart = m_VelocityObject.Top();
-	auto velRangeEnd = m_VelocityObject.Last();
+	auto velRangeStart = m_VelocityObject[0];
+	auto velRangeEnd = m_VelocityObject[m_VelocityObject.Num() - 1];
 
 	//calculate desired velocity
-	auto destinationPos = avoidanceAgent->m_DestinationActor->GetActorLocation();
+	/*auto destinationPos = avoidanceAgent->m_DestinationActor->GetActorLocation();
 	FVector2D destinationPos2D = FVector2D(destinationPos.X, destinationPos.Y);
-
-	auto desiredDirection = (destinationPos2D - avoidanceAgent->GetPosition2D()).GetSafeNormal();
-	auto desiredVelocity = desiredDirection * avoidanceAgent->GetPosition2D().Size();
+	auto desiredDirection = (destinationPos2D - avoidanceAgent->GetPosition2D()).GetSafeNormal();*/
+	//auto desiredVelocity = desiredDirection * avoidanceAgent->GetPosition2D().Size();
 
 	//choose a vel outside of velocity object 
-	//auto currentVelAngle = FMath::DegreesToRadians(FMath::Atan2(avoidanceAgent->GetVelocity2D().Y, avoidanceAgent->GetVelocity2D().X));
-	auto desiredVelAngle = FMath::DegreesToRadians(FMath::Atan2(desiredVelocity.Y, desiredVelocity.X));
-	auto startAngle = FMath::DegreesToRadians(FMath::Atan2(velRangeStart.Y, velRangeStart.X));
-	auto endAngle = FMath::DegreesToRadians(FMath::Atan2(velRangeEnd.Y, velRangeEnd.X));
+	auto currentVel = avoidanceAgent->GetVelocity2D();
+;
+	auto closestVoBoundVec = FindClosestVOBoundFromPoint(currentVel);
+	
 
-	auto angleDiffToStart = FMath::Abs(desiredVelAngle - startAngle);
-	auto angleDiffToEnd = FMath::Abs(desiredVelAngle - endAngle);
 
-	double avoidOffset = FMath::DegreesToRadians(5);
-	FVector2D avoidenceVelocity;
-	int randSide;
+	double avoidOffset = FMath::DegreesToRadians(m_AvoidanceOffset);
+	FVector2D avoidenceVelocity{};
+	int randSide{};
 
-	if (angleDiffToStart == angleDiffToEnd)
+	auto VOBoundAngle = FMath::Atan2(closestVoBoundVec.Y, closestVoBoundVec.X);
+	
+	double avoidanceAngle{};
+	if (closestVoBoundVec == velRangeStart || randSide == 0)
 	{
-		randSide = FMath::FRandRange(0, 1);
+		avoidanceAngle = VOBoundAngle - avoidOffset;
 	}
-
-	// Calculate the new angle with damping
-	double avoidanceAngle;
-	if (angleDiffToStart < angleDiffToEnd || randSide == 0)
+	else if(closestVoBoundVec == velRangeEnd || randSide == 1)
 	{
-		avoidanceAngle = startAngle - avoidOffset;
-	}
-	else if(angleDiffToEnd < angleDiffToStart || randSide == 1)
-	{
-		avoidanceAngle = endAngle + avoidOffset;
+		avoidanceAngle = VOBoundAngle + avoidOffset;
 	}
 
 	
@@ -432,7 +452,7 @@ void UCollisionAvoidenceComponent::AvoidCollision(const AORCAvsRVOCharacter* avo
 
 	float maxSpeed = characterMovement->MaxWalkSpeed;
 	float currentSpeed = characterMovement->Velocity.Size();
-	float clampedSpeed = FMath::Clamp(currentSpeed, 0.0f, maxSpeed * 1.5);
+	float clampedSpeed = FMath::Clamp(currentSpeed, 0.0f, maxSpeed );
 
 	characterMovement->Velocity = characterMovement->Velocity.GetSafeNormal() * clampedSpeed;
 
@@ -440,47 +460,54 @@ void UCollisionAvoidenceComponent::AvoidCollision(const AORCAvsRVOCharacter* avo
 	//GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Orange, "AvoidingCollision");
 }
 
+//{
+//	ClpSimplex model;
+//	{
+//	// Define variables for vx and vy
+//	int numCols = 2;
+//	double colLowerBound[2] = { 0, 0 }; // Lower bounds 
+//	double colUpperBound[2] = { maxSpeed, maxSpeed };   // Upper bounds 
+//	double objective[2];                        // Objective function coefficients
+//
+//	// Set preferred velocities as the objective
+//	objective[0] = avoidanceAgent->GetVelocity2D().X; // Preferred velocity in x -> A coefficient 
+//	objective[1] = avoidanceAgent->GetVelocity2D().Y; // Preferred velocity in y -> B coefficient
+//
+//	// Add columns (variables) to the model
+//	model.addColumns(numCols, colLowerBound, colUpperBound, objective, nullptr, nullptr, nullptr);
+//
+//	// For each ORCA line
+//	for (const auto& orcaLine : m_OrcaLines) {
+//		// Constraint: A*vx + B*vy ? C
+//		double elements[2] = { orcaLine.direction.X, orcaLine.direction.Y };
+//		int columns[2] = { 0, 1 }; // Column indices for vx and vy
+//		double rowUpperBound = orcaLine.point.X * orcaLine.direction.X + orcaLine.point.Y * orcaLine.direction.Y; // Upper bound
+//		// Add the constraint to the model
+//		model.addRow(2, columns, elements, -COIN_DBL_MAX, rowUpperBound);
+//	}
+//
+//	// Solve the problem
+//	model.primal();
+//
+//	if (!model.isProvenOptimal())
+//	{
+//		GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Green, "NOT OPTIMAL");
+//		return;
+//	}
+//	// Retrieve the solution
+//	double* solution = model.primalColumnSolution();
+//	double optimalvelX = solution[0];
+//	double optimalvelY = solution[1];
+//
+//	GEngine->AddOnScreenDebugMessage(-1, 100, FColor::Green, "Current Velocity: " + FString::FromInt(avoidanceAgent->GetVelocity().X) + " , " + FString::FromInt(avoidanceAgent->GetVelocity().Y));
+//	GEngine->AddOnScreenDebugMessage(-1, 100, FColor::Red, "Optimal Avoidance Velocity: " + FString::FromInt(optimalvelX) + " , " + FString::FromInt(optimalvelY));
+//
+//	characterMovement->Velocity = FVector( optimalvelX, optimalvelY, 0 );
+//	}
+//}
 
-	//ClpSimplex model;
-	//{
-	//// Define variables for vx and vy
-	//int numCols = 2;
-	//double colLowerBound[2] = { 0, 0 }; // Lower bounds 
-	//double colUpperBound[2] = { maxSpeed, maxSpeed };   // Upper bounds 
-	//double objective[2];                        // Objective function coefficients
 
-	//// Set preferred velocities as the objective
-	//objective[0] = avoidanceAgent->GetVelocity2D().X; // Preferred velocity in x -> A coefficient 
-	//objective[1] = avoidanceAgent->GetVelocity2D().Y; // Preferred velocity in y -> B coefficient
 
-	//// Add columns (variables) to the model
-	//model.addColumns(numCols, colLowerBound, colUpperBound, objective, nullptr, nullptr, nullptr);
 
-	//// For each ORCA line
-	//for (const auto& orcaLine : m_OrcaLines) {
-	//	// Constraint: A*vx + B*vy ? C
-	//	double elements[2] = { orcaLine.direction.X, orcaLine.direction.Y };
-	//	int columns[2] = { 0, 1 }; // Column indices for vx and vy
-	//	double rowUpperBound = orcaLine.point.X * orcaLine.direction.X + orcaLine.point.Y * orcaLine.direction.Y; // Upper bound
-	//	// Add the constraint to the model
-	//	model.addRow(2, columns, elements, -COIN_DBL_MAX, rowUpperBound);
-	//}
 
-	//// Solve the problem
-	//model.primal();
 
-	//if (!model.isProvenOptimal())
-	//{
-	//	GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Green, "NOT OPTIMAL");
-	//	return;
-	//}
-	//// Retrieve the solution
-	//double* solution = model.primalColumnSolution();
-	//double optimalvelX = solution[0];
-	//double optimalvelY = solution[1];
-
-	//GEngine->AddOnScreenDebugMessage(-1, 100, FColor::Green, "Current Velocity: " + FString::FromInt(avoidanceAgent->GetVelocity().X) + " , " + FString::FromInt(avoidanceAgent->GetVelocity().Y));
-	//GEngine->AddOnScreenDebugMessage(-1, 100, FColor::Red, "Optimal Avoidance Velocity: " + FString::FromInt(optimalvelX) + " , " + FString::FromInt(optimalvelY));
-
-	//characterMovement->Velocity = FVector( optimalvelX, optimalvelY, 0 );
-	//}

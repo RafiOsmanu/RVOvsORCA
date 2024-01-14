@@ -10,9 +10,12 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Materials/Material.h"
 #include "Kismet/GameplayStatics.h"
+#include "Components/CapsuleComponent.h"
+#include <chrono>
 #include "Engine/World.h"
 
 #include "AgentManager.h"
+
 
 AORCAvsRVOCharacter::AORCAvsRVOCharacter()
 {
@@ -31,8 +34,6 @@ AORCAvsRVOCharacter::AORCAvsRVOCharacter()
 	GetCharacterMovement()->bSnapToPlaneAtStart = true;
 
 
-	
-	
 
 	// Activate ticking in order to update the cursor every frame.
 	PrimaryActorTick.bCanEverTick = true;
@@ -46,9 +47,13 @@ void AORCAvsRVOCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	InitializeNeighbours();
+	m_StartTrackingComputation = false;
+	m_MaxTraceAmount = 100;
 
 	
 }
+
+
 
 void AORCAvsRVOCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
@@ -56,13 +61,44 @@ void AORCAvsRVOCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	//UAgentManager::GetInstance()->ReleaseInstance();
 }
 
+void AORCAvsRVOCharacter::OnBeginOverlap(AActor* OtherActor)
+{
+	if (Cast<AORCAvsRVOCharacter>(OtherActor))
+	{
+		++m_HitCount;
+		//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "Succesfull Cast");
+	}
+	else
+	{
+		//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, "Cast Failed");
+	}
+
+	PrintTotalCollisionCount();
+}
+
+void AORCAvsRVOCharacter::StartPerformanceTrace()
+{
+	if(m_TrackComputationSpeed)
+	m_StartTrackingComputation = true;
+
+	if (m_ComputationTimes.Num() >= m_MaxTraceAmount)
+	{
+		long long sum{0};
+		for (const auto& computeTime : m_ComputationTimes)
+		{
+			sum += computeTime;
+		}
+
+		auto average = sum / m_MaxTraceAmount;
+		UE_LOG(LogTemp, Warning, TEXT("Average: %lld nanoseconds"), average);
+	}
+}
+
 void AORCAvsRVOCharacter::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
-	//GEngine->AddOnScreenDebugMessage(-1, .5f, FColor::Blue, FString::FromInt(m_NeighbouringAgents.Num()));
-	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "Tick");
 
-	DrawDebugBox(GetWorld(), GetPosition(), FVector(10, 10, 10), FColor::Orange, false, 10, 0, 2.f);
+	DrawDebugBox(GetWorld(), GetPosition(), FVector(5, 5, 5), FColor::Orange, false, 10, 0, 2.f);
 	/*DrawDebugDirectionalArrow(GetWorld(),
 		FVector(GetPosition2D().X, GetPosition2D().Y, 0),
 		FVector(GetPosition2D().X, GetPosition2D().Y, 0) + FVector(GetVelocity2D().X, GetVelocity2D().Y, 0),
@@ -113,18 +149,93 @@ float AORCAvsRVOCharacter::GetRadius() const
 
 void AORCAvsRVOCharacter::CalculateVelocityObject()
 {
-	for (const auto& neighborAgent : m_NeighbouringAgents)
+	std::chrono::steady_clock::time_point start;
+	switch (m_AvoidenceType)
 	{
-		if (!neighborAgent) continue;
-		//VO / RVO
-		m_AvoidanceComponent->CalculateVelocityObject(neighborAgent, false);
+	case AvoidanceType::RVO:
+		
 
+		if (m_StartTrackingComputation && m_TraceAmount <= m_MaxTraceAmount)
+		{
+			start = std::chrono::high_resolution_clock::now();
+			
+		}
+
+		for (const auto& neighborAgent : m_NeighbouringAgents)
+		{
+			if (!neighborAgent) continue;
+			//VO / RVO
+			m_AvoidanceComponent->CalculateVelocityObject(neighborAgent, true);
+		}
+
+		if (m_StartTrackingComputation && m_TraceAmount <= m_MaxTraceAmount)
+		{
+			// Stop measuring time
+			auto stop = std::chrono::high_resolution_clock::now();
+
+			// Calculate the duration
+			auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
+
+			// Output the time taken
+			long long durationDouble = duration.count();
+
+			UE_LOG(LogTemp, Warning, TEXT("Time taken: %lld nanoseconds"), durationDouble);
+			m_ComputationTimes.Add(durationDouble);
+			++m_TraceAmount;
+		}
+
+		break;
+	case AvoidanceType::ORCA:
+
+		if (m_StartTrackingComputation && m_TraceAmount <= m_MaxTraceAmount)
+		{
+			start = std::chrono::high_resolution_clock::now();
+
+		}
+
+		for (const auto& neighborAgent : m_NeighbouringAgents)
+		{
+			if (!neighborAgent) continue;
+			//VO / RVO
+			m_AvoidanceComponent->CalculateVelocityObject(neighborAgent, false);
+
+			//ORCA
+			m_AvoidanceComponent->CalculateOrcaLine(neighborAgent);
+		}
 		//ORCA
-		m_AvoidanceComponent->CalculateOrcaLine(neighborAgent);
-	}
+		m_AvoidanceComponent->ChooseOptimalVelocity();
 
-	//ORCA
-	m_AvoidanceComponent->ChooseOptimalVelocity();
+		if (m_StartTrackingComputation && m_TraceAmount <= m_MaxTraceAmount)
+		{
+			// Stop measuring time
+			auto stop = std::chrono::high_resolution_clock::now();
+
+			// Calculate the duration
+			auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
+
+			// Output the time taken
+			long long durationDouble = duration.count();
+
+			UE_LOG(LogTemp, Warning, TEXT("Time taken: %lld nanoseconds"), durationDouble);
+			m_ComputationTimes.Add(durationDouble);
+			++m_TraceAmount;
+		}
+		break;
+	}
+}
+
+void AORCAvsRVOCharacter::PrintTotalCollisionCount()
+{
+	auto totalHitCount = m_HitCount;
+
+	for (const auto& neighbor : m_NeighbouringAgents)
+	{
+		totalHitCount += neighbor->m_HitCount;
+	}
+	// every overlap count up hit for both agent so divide by 2 to make it accurate hitcount
+	totalHitCount /= 2;
+
+	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, "Total Hit Count: " + FString::FromInt(m_HitCount));
 }
 
 void AORCAvsRVOCharacter::InitializeNeighbours()
@@ -152,5 +263,6 @@ void AORCAvsRVOCharacter::InitializeNeighbours()
 		}
 	}
 }
+
 
 

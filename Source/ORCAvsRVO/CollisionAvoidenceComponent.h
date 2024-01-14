@@ -45,8 +45,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AvoidanceInfo")
 	double m_OrcaPathFollowingWeight = 0;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AvoidanceInfo")
+	double m_AvoidanceOffset = 20;
+
 private:
 
+	
 	TArray<FVector2D> m_VelocityObject;
 
 	//ORCA
@@ -62,6 +66,7 @@ private:
 
 	
 	FVector2D FindVectorToClosestPointOnVOBound(FVector2D startPoint);
+	FVector2D FindClosestVOBoundFromPoint(FVector2D startPoint);
 
 
 	FVector2D CalcVelocityFromAngleAndSpeed(double angle, double speed);
